@@ -1,0 +1,51 @@
+name: Sync to genviral-skill
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout meta-ads-skill
+        uses: actions/checkout@v4
+        with:
+          path: meta-ads-skill
+
+      - name: Checkout genviral-skill
+        uses: actions/checkout@v4
+        with:
+          repository: fdarkaou/genviral-skill
+          token: ${{ secrets.GENVIRAL_SYNC_TOKEN }}
+          path: genviral-skill
+
+      - name: Sync meta-ads into genviral-skill
+        run: |
+          # Remove old copy (but preserve .gitignore behavior)
+          rm -rf genviral-skill/meta-ads
+
+          # Copy fresh files (exclude .git and GitHub workflows to avoid recursion)
+          mkdir -p genviral-skill/meta-ads
+          rsync -a \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='config.yaml' \
+            --exclude='data/' \
+            --exclude='campaign/runs/' \
+            meta-ads-skill/ genviral-skill/meta-ads/
+
+      - name: Commit and push
+        run: |
+          cd genviral-skill
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add meta-ads/
+          if git diff --staged --quiet; then
+            echo "No changes to sync"
+          else
+            git commit -m "sync: update meta-ads from fdarkaou/meta-ads-skill
+
+            Auto-synced from https://github.com/fdarkaou/meta-ads-skill@${{ github.sha }}"
+            git push
+          fi
